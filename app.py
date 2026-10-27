@@ -1,5 +1,5 @@
-
 import cbr_engine
+import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -9,7 +9,7 @@ import streamlit as st
 # ==============================================================================
 
 st.set_page_config(
-    page_title="Sistem Pakar Peredam Suara (CBR)",
+    page_title="Sistem Pakar Peredam Suara Ruangan (ICBR)",
     page_icon="🔊",
     layout="wide",
 )
@@ -27,8 +27,8 @@ st.markdown(
        ========================================================= */
 
     .spec-card {
-        background-color: #f5f7fa;
-        border: 1px solid #d9dee7;
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
         border-radius: 12px;
         padding: 20px;
         margin-bottom: 15px;
@@ -36,22 +36,22 @@ st.markdown(
     }
 
     .spec-title {
-        font-size: 16px;
+        font-size: 15px;
         font-weight: 700;
-        color: #333333;
-        margin-bottom: 10px;
+        color: #475569;
+        margin-bottom: 8px;
     }
 
     .spec-value {
         font-size: 22px;
         font-weight: 700;
-        color: #111111;
-        margin-bottom: 8px;
+        color: #0f172a;
+        margin-bottom: 6px;
     }
 
     .spec-description {
-        font-size: 14px;
-        color: #555555;
+        font-size: 13px;
+        color: #64748b;
     }
 
     /* =========================================================
@@ -59,8 +59,8 @@ st.markdown(
        ========================================================= */
 
     .analysis-card {
-        background-color: #f8f9fb;
-        border: 1px solid #dfe3e8;
+        background-color: #f8fafc;
+        border: 1px solid #e2e8f0;
         border-radius: 10px;
         padding: 15px;
         text-align: center;
@@ -68,16 +68,16 @@ st.markdown(
     }
 
     .analysis-title {
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 600;
-        color: #555555;
-        margin-bottom: 8px;
+        color: #64748b;
+        margin-bottom: 6px;
     }
 
     .analysis-value {
-        font-size: 24px;
+        font-size: 22px;
         font-weight: 700;
-        color: #111111;
+        color: #0f172a;
     }
 
     /* =========================================================
@@ -93,35 +93,34 @@ st.markdown(
        ========================================================= */
 
     @media (prefers-color-scheme: dark) {
-
         .spec-card {
-            background-color: #262730;
-            border-color: #444750;
+            background-color: #1e293b;
+            border-color: #334155;
         }
 
         .spec-title {
-            color: #dddddd;
+            color: #94a3b8;
         }
 
         .spec-value {
-            color: #ffffff;
+            color: #f8fafc;
         }
 
         .spec-description {
-            color: #bbbbbb;
+            color: #cbd5e1;
         }
 
         .analysis-card {
-            background-color: #262730;
-            border-color: #444750;
+            background-color: #1e293b;
+            border-color: #334155;
         }
 
         .analysis-title {
-            color: #bbbbbb;
+            color: #94a3b8;
         }
 
         .analysis-value {
-            color: #ffffff;
+            color: #f8fafc;
         }
     }
     </style>
@@ -137,18 +136,16 @@ st.markdown(
 @st.cache_data
 def get_initialized_engine():
     csv_file = "peredam_suara_clean.csv"
-
     return cbr_engine.load_and_initialize_engine(csv_file)
 
 
 try:
     engine_data = get_initialized_engine()
-
     df_cases = engine_data["df_cases"]
     Wh = engine_data["Wh"]
     v_min = engine_data["v_min"]
     v_max = engine_data["v_max"]
-
+    CR_val = engine_data["CR"]
 except Exception as e:
     st.error(f"Gagal memuat dataset atau engine CBR: {e}")
     st.stop()
@@ -158,38 +155,83 @@ except Exception as e:
 # SIDEBAR — FORM INPUT USER
 # ==============================================================================
 
-st.sidebar.header("📝 Input Parameter Ruangan")
-
+st.sidebar.header("📝 Parameter Kebutuhan Ruangan")
 st.sidebar.markdown(
-    "Masukkan spesifikasi ruangan dan kebutuhan akustik Anda di bawah ini."
+    "Masukkan spesifikasi fisik ruangan, kondisi kebisingan, serta preferensi Anda."
 )
-
 
 with st.sidebar.form(key="user_input_form"):
 
+    st.subheader("1. Karakteristik Fisik Ruangan")
+
     luas_ruangan_m2 = st.number_input(
-        "Luas Ruangan (m²)",
+        "Luas Lantai Ruangan (m²)",
         min_value=5.0,
         max_value=200.0,
-        value=18.0,
+        value=40.0,
         step=1.0,
-    )
-
-    ketebalan_dinding_cm = st.number_input(
-        "Ketebalan Dinding (cm)",
-        min_value=5.0,
-        max_value=50.0,
-        value=12.0,
-        step=1.0,
+        help="Luas area lantai ruangan sumber kebisingan.",
     )
 
     luas_dinding_m2 = st.number_input(
-        "Luas Dinding yang Diberi Peredam (m²)",
+        "Luas Dinding yang Dipasangi Peredam (m²)",
         min_value=5.0,
-        max_value=200.0,
-        value=30.0,
+        max_value=250.0,
+        value=60.0,
+        step=1.0,
+        help="Luas bidang partisi/dinding yang akan dipasangi insulasi akustik.",
+    )
+
+    jenis_dinding = st.selectbox(
+        "Jenis Struktur Dinding Saat Ini",
+        options=["Hebel", "Batako", "Bata", "Beton", "Gypsum", "Kayu"],
+        index=0,
+    )
+
+    ketebalan_dinding_cm = st.number_input(
+        "Ketebalan Dinding Eksisting (cm)",
+        min_value=5.0,
+        max_value=50.0,
+        value=10.0,
         step=1.0,
     )
+
+    st.subheader("2. Kondisi & Frekuensi Kebisingan")
+
+    sumber_suara = st.selectbox(
+        "Sumber Kebisingan Utama",
+        options=[
+            "Musik / audio",
+            "Percakapan",
+            "AC outdoor",
+            "Home theater",
+            "Studio band",
+            "Lalu lintas",
+            "Pompa air",
+            "Kompresor",
+            "Anak bermain",
+            "Genset",
+            "Bengkel las",
+            "Karaoke",
+            "Ruang rapat",
+            "Mesin produksi",
+        ],
+        index=0,
+    )
+
+    kelas_frekuensi = st.selectbox(
+        "Karakteristik Frekuensi Dominan",
+        options=["low", "mid", "high"],
+        index=1,
+        format_func=lambda x: {
+            "low": "Low / Rendah (Bass, Subwoofer, Drum, Genset < 250 Hz)",
+            "mid": "Mid / Menengah (Vokal, Musik Akustik, Percakapan 250 Hz - 2 kHz)",
+            "high": "High / Tinggi (Treble, Bising Mesin, Sirine > 2 kHz)",
+        }[x],
+        help="Karakteristik frekuensi menentukan jenis dan densitas material peredam yang efektif.",
+    )
+
+    st.subheader("3. Intensitas & Target Akustik")
 
     intensitas_suara_awal_db = st.slider(
         "Intensitas Suara Bising Awal (dB)",
@@ -197,18 +239,29 @@ with st.sidebar.form(key="user_input_form"):
         max_value=120.0,
         value=85.0,
         step=1.0,
+        help="Tingkat kebisingan awal di dalam ruangan sumber suara.",
     )
 
     target_suara_db = st.slider(
-        "Target Suara yang Diinginkan (dB)",
+        "Target Suara di Ruang Penerima (dB)",
         min_value=20.0,
         max_value=60.0,
         value=40.0,
         step=1.0,
+        help="Standar kebisingan ruang hunian tenang berkisar 35 - 45 dB.",
+    )
+
+    st.subheader("4. Batasan Anggaran & Konfigurasi")
+
+    kelas_anggaran = st.selectbox(
+        "Kelas Anggaran Biaya",
+        options=["Ekonomis", "Standar", "Premium"],
+        index=1,
+        help="Ekonomis: Rp 130k-180k/m² | Standar: Rp 170k-330k/m² | Premium: Rp 300k-700k/m²",
     )
 
     top_k_val = st.slider(
-        "Jumlah Kasus Mirip (Top-K)",
+        "Jumlah Kasus Serupa (Top-K Retrieval)",
         min_value=3,
         max_value=15,
         value=10,
@@ -216,7 +269,7 @@ with st.sidebar.form(key="user_input_form"):
     )
 
     submit_button = st.form_submit_button(
-        label="🔍 Hitung Rekomendasi",
+        label="🔍 Analisis & Rekomendasikan Peredam",
         use_container_width=True,
     )
 
@@ -225,12 +278,14 @@ with st.sidebar.form(key="user_input_form"):
 # HALAMAN UTAMA
 # ==============================================================================
 
-st.title("🔊 Sistem Pakar Rekomendasi Peredam Suara")
+st.title("🔊 Sistem Pakar Rekomendasi Desain Peredam Suara Ruangan")
 
 st.markdown(
     """
-    Sistem berbasis **Case-Based Reasoning (CBR)** dengan bobot hibrida
-    **AHP + Shannon Entropy + SLSQP** dan **Grey Relational Analysis (GRA)**.
+    Sistem pakar ini mengintegrasikan **Improved Case-Based Reasoning (ICBR)** dengan 
+    pembobotan hibrida **CRNHW (AHP + Shannon Entropy + SLSQP Optimization)**, 
+    adaptasi kasus **CAHWM (SURA)** berbasis Grey Relational Analysis, serta pemodelan fisika 
+    akustik lapangan baku **ASTM E336** & **Delany-Bazley Scaling**.
     """
 )
 
@@ -238,29 +293,30 @@ st.divider()
 
 
 # ==============================================================================
-# USER INPUT
+# PERSIAPAN INPUT DATA
 # ==============================================================================
 
-delta_db_calc = (
-    intensitas_suara_awal_db - target_suara_db
-)
+delta_db_calc = float(intensitas_suara_awal_db - target_suara_db)
 
 user_input = {
-    "luas_ruangan_m2": luas_ruangan_m2,
-    "ketebalan_dinding_cm": ketebalan_dinding_cm,
-    "luas_dinding_m2": luas_dinding_m2,
-    "intensitas_suara_awal_db": intensitas_suara_awal_db,
-    "target_suara_db": target_suara_db,
+    "luas_ruangan_m2": float(luas_ruangan_m2),
+    "ketebalan_dinding_cm": float(ketebalan_dinding_cm),
+    "luas_dinding_m2": float(luas_dinding_m2),
+    "jenis_dinding": jenis_dinding,
+    "sumber_suara": sumber_suara,
+    "kelas_frekuensi": kelas_frekuensi,
+    "kelas_anggaran": kelas_anggaran,
+    "intensitas_suara_awal_db": float(intensitas_suara_awal_db),
+    "target_suara_db": float(target_suara_db),
     "delta_db": delta_db_calc,
 }
 
 
 # ==============================================================================
-# RETRIEVE
+# PROSES RETRIEVAL (PHASE 2)
 # ==============================================================================
 
 try:
-
     top_k_candidates = cbr_engine.retrieve_top_k(
         df_cases,
         user_input,
@@ -269,27 +325,23 @@ try:
         v_max,
         K=top_k_val,
     )
-
 except Exception as e:
-
     st.error(f"Gagal melakukan proses retrieval CBR: {e}")
     st.stop()
 
 
 # ==============================================================================
-# ADAPT
+# PROSES ADAPTASI SOLUSI (PHASE 3)
 # ==============================================================================
 
 try:
-
     adapted_result = cbr_engine.adapt_solution(
         top_k_candidates,
         user_input,
         Wh,
+        df_cases_full=df_cases,
     )
-
 except Exception as e:
-
     st.error(f"Gagal melakukan proses adaptasi solusi: {e}")
     st.stop()
 
@@ -298,257 +350,161 @@ except Exception as e:
 # SECTION 1 — RINGKASAN REKOMENDASI UTAMA
 # ==============================================================================
 
-st.subheader("🎯 Rekomendasi Solusi Peredam Suara")
+st.subheader("🎯 Rekomendasi Solusi Peredam Suara Ruangan")
 
-
-# ------------------------------------------------------------------------------
-# FLANKING RULE
-# ------------------------------------------------------------------------------
-
+# Notifikasi Flanking Transmission Override Rule
 if adapted_result["flanking_rule_applied"]:
-
     st.warning(
-        "⚠️ **Catatan Flanking Transmission:** "
-        "Kebutuhan reduksi suara tinggi (>25 dB). "
-        "Sistem pemasangan disesuaikan menggunakan rongga udara "
-        "(air gap) untuk membantu mengurangi transmisi getaran."
+        "⚠️ **Aturan Batas Fisika (Flanking Transmission Override):** "
+        f"Kebutuhan reduksi kebisingan sangat tinggi (ΔdB = {user_input['delta_db']:.1f} dB > 25 dB). "
+        "Untuk mencegah kebocoran getaran mekanis melalui struktur dinding (*structural flanking*), "
+        "sistem pemasangan otomatis disesuaikan menggunakan **Rongga Udara (Air Gap 5 cm) + Gypsum Decoupling 12 mm**."
     )
-
-
-# ------------------------------------------------------------------------------
-# KARTU REKOMENDASI
-# ------------------------------------------------------------------------------
 
 col1, col2 = st.columns(2)
 
-
-# ==============================================================================
-# KOLOM KIRI
-# ==============================================================================
-
 with col1:
-
-    # --------------------------------------------------------------------------
-    # MATERIAL
-    # --------------------------------------------------------------------------
-
+    # 1. Material & Tebal Snapped
     with st.container(border=True):
-
         st.markdown("### 🧱 Material Peredam Utama")
-
+        st.markdown(f"## {adapted_result['material_peredam']}")
         st.markdown(
-            f"## {adapted_result['material_peredam']}"
+            f"Ketebalan Terpilih: **{adapted_result['ketebalan_peredam_mm']} mm** "
+            f"*(Tersedia di pasar/dataset; hasil HWM kontinu: {adapted_result['tebal_hwm_kontinu_mm']} mm)*"
         )
 
-        st.markdown(
-            f"Ketebalan rekomendasi: "
-            f"**{adapted_result['ketebalan_peredam_mm']} mm**"
-        )
-
-
-    # --------------------------------------------------------------------------
-    # SISTEM PEMASANGAN
-    # --------------------------------------------------------------------------
-
+    # 2. Sistem Pemasangan
     with st.container(border=True):
-
         st.markdown("### 🔧 Sistem Pemasangan")
-
-        st.markdown(
-            f"**{adapted_result['sistem_pemasangan']}**"
-        )
-
+        st.markdown(f"**{adapted_result['sistem_pemasangan']}**")
         st.caption(
-            "Sistem pemasangan yang direkomendasikan berdasarkan "
-            "hasil adaptasi CBR."
+            "Konfigurasi instalasi direkomendasikan guna meminimalkan jembatan getaran struktural."
         )
-
-
-# ==============================================================================
-# KOLOM KANAN
-# ==============================================================================
 
 with col2:
-
-    # --------------------------------------------------------------------------
-    # BIAYA
-    # --------------------------------------------------------------------------
-
+    # 3. Estimasi Finansial
     with st.container(border=True):
-
         st.markdown("### 💰 Estimasi Total Biaya")
-
+        st.markdown(f"## Rp {adapted_result['est_biaya_total_rp']:,}")
         st.markdown(
-            f"## Rp {adapted_result['est_biaya_total_rp']:,}"
+            f"Estimasi biaya satuan: **Rp {adapted_result['biaya_per_m2_rp']:,} / m²** "
+            f"*(Kelas Anggaran: {user_input['kelas_anggaran']})*"
         )
 
-        st.markdown(
-            f"Estimasi biaya per m²: "
-            f"**Rp {adapted_result['biaya_per_m2_rp']:,} / m²**"
-        )
-
-
-    # --------------------------------------------------------------------------
-    # KEMIRIPAN
-    # --------------------------------------------------------------------------
-
+    # 4. Evaluasi & Tingkat Rekomendasi
     with st.container(border=True):
-
-        st.markdown("### 🎯 Tingkat Kesesuaian Kasus")
-
+        st.markdown("### 🎯 Evaluasi Kelayakan Rekomendasi")
+        status_color = "🟢" if adapted_result["status_pemenuhan"] == "YA" else "🟡"
         st.markdown(
-            f"## {adapted_result['max_similarity_pct']}%"
+            f"## {status_color} {adapted_result['tingkat_rekomendasi']}"
         )
-
         st.markdown(
-            f"Tingkat rekomendasi: "
-            f"**{adapted_result['tingkat_rekomendasi']}**"
+            f"• **Memenuhi Target Peredaman:** {adapted_result['status_pemenuhan']} "
+            f"*(Rasio: {adapted_result['rasio_pemenuhan_pct']}%)*  \n"
+            f"• **Kualitas Kemiripan Kasus Historis:** {adapted_result['max_similarity_pct']}%"
         )
-
 
 st.divider()
 
 
 # ==============================================================================
-# SECTION 2 — DETAIL PERHITUNGAN AKUSTIK
+# SECTION 2 — DETAIL PERHITUNGAN AKUSTIK LAPANGAN (ASTM E336)
 # ==============================================================================
 
-st.subheader("📊 Detail Perhitungan Akustik")
+st.subheader("📊 Detail Perhitungan Fisika Akustik Lapangan (ASTM E336 & Sabine)")
 
-
-mcol1, mcol2, mcol3, mcol4 = st.columns(4)
-
-
-# ==============================================================================
-# TARGET REDUKSI
-# ==============================================================================
+mcol1, mcol2, mcol3, mcol4, mcol5 = st.columns(5)
 
 with mcol1:
-
     with st.container(border=True):
-
         st.markdown("**Target Reduksi (Δ dB)**")
-
-        st.markdown(
-            f"### {user_input['delta_db']:.1f} dB"
-        )
-
-
-# ==============================================================================
-# REDUKSI MATERIAL
-# ==============================================================================
+        st.markdown(f"### {user_input['delta_db']:.1f} dB")
+        st.caption("Awal - Target")
 
 with mcol2:
-
     with st.container(border=True):
-
-        st.markdown("**Reduksi Material (TL HWM)**")
-
-        st.markdown(
-            f"### {adapted_result['tl_material_hwm_db']} dB"
-        )
-
-
-# ==============================================================================
-# KOREKSI GEOMETRI
-# ==============================================================================
+        st.markdown("**NR Aktual Lapangan**")
+        st.markdown(f"### {adapted_result['est_nr_aktual_db']:.1f} dB")
+        st.caption(f"HWM tebal: {adapted_result['tl_material_hwm_db']} dB")
 
 with mcol3:
-
     with st.container(border=True):
-
-        st.markdown("**Koreksi Geometri Ruang**")
-
-        st.markdown(
-            f"### {adapted_result['koreksi_geometri_db']} dB"
-        )
-
-
-# ==============================================================================
-# ESTIMASI KEBISINGAN AKHIR
-# ==============================================================================
+        st.markdown("**Koreksi Geometri (S/A)**")
+        st.markdown(f"### {adapted_result['koreksi_geometri_db']:.2f} dB")
+        st.caption("10·log₁₀(S / A_ruang)")
 
 with mcol4:
-
     with st.container(border=True):
+        st.markdown("**Est. Suara di Luar**")
+        st.markdown(f"### {adapted_result['est_suara_luar_db']:.1f} dB")
+        st.caption("Target ruang penerima")
 
-        st.markdown("**Est. Kebisingan Akhir**")
-
-        st.markdown(
-            f"### {adapted_result['est_suara_luar_db']} dB"
-        )
-
+with mcol5:
+    with st.container(border=True):
+        st.markdown("**Jarak Aman ke 40 dB**")
+        st.markdown(f"### {adapted_result['jarak_hingga_40db_m']:.2f} m")
+        st.caption("Inverse Square Law")
 
 st.divider()
 
 
 # ==============================================================================
-# SECTION 3 — TOP-K KASUS SERUPA
+# SECTION 3 — TOP-K KASUS BASIS DATA YANG PALING MIRIP
 # ==============================================================================
 
 st.subheader(
-    f"📋 Top-{top_k_val} Kasus Basis Data yang Paling Mirip"
+    f"📋 Top-{top_k_val} Kasus Basis Data yang Paling Mirip (Retrieval)"
 )
 
-
-# ------------------------------------------------------------------------------
-# COPY DATAFRAME
-# ------------------------------------------------------------------------------
-
 display_df = top_k_candidates.copy()
-
-
-# ------------------------------------------------------------------------------
-# FORMAT SIMILARITY
-# ------------------------------------------------------------------------------
 
 display_df["similarity_score"] = (
     display_df["similarity_score"] * 100
 ).round(2).astype(str) + " %"
 
-
-# ------------------------------------------------------------------------------
-# FORMAT BIAYA
-# ------------------------------------------------------------------------------
-
 if "estimasi_biaya_rp" in display_df.columns:
-
-    display_df["estimasi_biaya_rp"] = display_df[
-        "estimasi_biaya_rp"
-    ].apply(
-        lambda x: f"Rp {x:,.0f}"
-        if pd.notna(x)
-        else "-"
+    display_df["estimasi_biaya_rp"] = display_df["estimasi_biaya_rp"].apply(
+        lambda x: f"Rp {x:,.0f}" if pd.notna(x) else "-"
     )
 
+cols_to_show = [
+    "id",
+    "jenis_dinding",
+    "luas_dinding_m2",
+    "sumber_suara",
+    "kelas_frekuensi",
+    "kelas_anggaran",
+    "intensitas_suara_awal_db",
+    "target_suara_db",
+    "material_peredam",
+    "ketebalan_peredam_mm",
+    "estimasi_noise_reduction_db",
+    "estimasi_biaya_rp",
+    "similarity_score",
+]
+existing_cols = [c for c in cols_to_show if c in display_df.columns]
+display_sub = display_df[existing_cols].copy()
 
-# ------------------------------------------------------------------------------
-# RENAME KOLOM
-# ------------------------------------------------------------------------------
-
-display_df = display_df.rename(
+display_sub = display_sub.rename(
     columns={
-        "id_kasus": "ID Kasus",
-        "luas_ruangan_m2": "Luas R. (m²)",
-        "ketebalan_dinding_cm": "Tebal Dinding (cm)",
+        "id": "ID",
+        "jenis_dinding": "Dinding",
         "luas_dinding_m2": "Luas Dinding (m²)",
+        "sumber_suara": "Sumber Suara",
+        "kelas_frekuensi": "Frekuensi",
+        "kelas_anggaran": "Anggaran",
         "intensitas_suara_awal_db": "Suara Awal (dB)",
         "target_suara_db": "Target (dB)",
         "material_peredam": "Material",
-        "sistem_pemasangan": "Sistem Pemasangan",
-        "ketebalan_peredam_mm": "Tebal Peredam (mm)",
-        "estimasi_biaya_rp": "Biaya (Rp)",
-        "similarity_score": "Kemiripan (%)",
+        "ketebalan_peredam_mm": "Tebal (mm)",
+        "estimasi_noise_reduction_db": "NR Kasus (dB)",
+        "estimasi_biaya_rp": "Biaya Historis (Rp)",
+        "similarity_score": "Kemiripan",
     }
 )
 
-
-# ------------------------------------------------------------------------------
-# TABEL
-# ------------------------------------------------------------------------------
-
 st.dataframe(
-    display_df,
+    display_sub,
     use_container_width=True,
     hide_index=True,
 )
@@ -559,7 +515,7 @@ st.dataframe(
 # ==============================================================================
 
 st.divider()
-
 st.caption(
-    "Sistem Pakar Peredam Suara — Case-Based Reasoning (CBR)"
+    "Sistem Pakar Peredam Suara Ruangan — Improved Case-Based Reasoning (ICBR) "
+    f"| AHP Consistency Ratio (CR) = {CR_val:.4f} (< 0.10) | Standar ASTM E336"
 )
